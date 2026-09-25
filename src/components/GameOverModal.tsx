@@ -38,14 +38,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ players, isHost, o
   }, []);
 
   // Determine winner(s)
-  const survivors = players.filter((p) => !p.isEliminated);
+  const survivors = players?.filter((p) => !p.isEliminated) || [];
   const winner =
     survivors.length > 0
       ? survivors.sort((a, b) => b.lives - a.lives)[0]
-      : [...players].sort((a, b) => a.penaltyCount - b.penaltyCount)[0];
+      : [...(players || [])].sort((a, b) => a.penaltyCount - b.penaltyCount)[0];
 
   // Most penalized player
-  const penaltyKing = [...players].sort((a, b) => b.penaltyCount - a.penaltyCount)[0];
+  const penaltyKing = [...(players || [])].sort((a, b) => b.penaltyCount - a.penaltyCount)[0];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-300">
@@ -102,7 +102,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ players, isHost, o
         <div className="space-y-2 text-left">
           <h4 className="text-xs font-bold text-slate-300">本局所有人額頭卡牌真相大公開：</h4>
           <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-            {players.map((p) => (
+            {players?.map((p) => (
               <div
                 key={p.id}
                 className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs"

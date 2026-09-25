@@ -39,7 +39,7 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
   const [chatInput, setChatInput] = useState('');
   const [showViolationBanner, setShowViolationBanner] = useState<ViolationEvent | null>(null);
 
-  const myPlayer = players.find((p) => p.id === myPlayerId);
+  const myPlayer = players?.find((p) => p.id === myPlayerId);
 
   // Watch violation events for dramatic banner animation
   useEffect(() => {
@@ -78,7 +78,7 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 animate-in fade-in duration-300">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 opacity-100">
       {/* Violation Drama Overlay */}
       {showViolationBanner && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in zoom-in-95 duration-200">
@@ -157,12 +157,12 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
               </span>
             </h3>
             <span className="text-xs text-amber-400 font-medium">
-              存活人數: {players.filter((p) => !p.isEliminated).length} / {players.length}
+              存活人數: {players?.filter((p) => !p.isEliminated).length || 0} / {players?.length || 0}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {players.map((player) => {
+            {players?.map((player) => {
               const isMe = player.id === myPlayerId;
               const isEliminated = player.isEliminated;
 
@@ -325,7 +325,7 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
           {/* Feed & Chat List */}
           <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
             {/* System Events & Messages combined in chronological order */}
-            {historyLog.slice(-15).map((log) => (
+            {historyLog?.slice(-15).map((log) => (
               <div
                 key={log.id}
                 className={`p-2 rounded-lg text-xs leading-relaxed ${
@@ -342,7 +342,7 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
               </div>
             ))}
 
-            {messages.map((msg) => {
+            {messages?.map((msg) => {
               const isMine = msg.senderId === myPlayerId;
               return (
                 <div

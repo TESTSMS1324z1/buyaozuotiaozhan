@@ -98,7 +98,7 @@ export default function App() {
 
   // Actions
   const handleToggleReady = () => {
-    const me = room?.players.find(p => p.id === myPlayerId);
+    const me = room?.players?.find(p => p.id === myPlayerId);
     if (me && room?.roomId) {
       gameService.toggleReady(room.roomId, myPlayerId, !me.isReady);
     }
@@ -111,7 +111,7 @@ export default function App() {
   };
 
   const handleReportViolation = (targetPlayerId: string) => {
-    const me = room?.players.find(p => p.id === myPlayerId);
+    const me = room?.players?.find(p => p.id === myPlayerId);
     if (room?.roomId && me) {
       gameService.reportViolation(room.roomId, targetPlayerId, me.name);
     }
@@ -120,7 +120,7 @@ export default function App() {
   const handleGuessOwnCard = (guess: string) => {
     // In Firebase version, we need to find the card from someone else or wait for local check
     // For simplicity, we just trigger the sound check
-    const me = room?.players.find(p => p.id === myPlayerId);
+    const me = room?.players?.find(p => p.id === myPlayerId);
     // Note: The real card is in 'secrets' collection, but current player can't read it.
     // We'd need a cloud function or a different check if we want it fully server-side.
     // For now, let's just use the '???' as a placeholder or assume client check via other players.
@@ -128,7 +128,7 @@ export default function App() {
   };
 
   const handleSendChat = (text: string) => {
-    const me = room?.players.find(p => p.id === myPlayerId);
+    const me = room?.players?.find(p => p.id === myPlayerId);
     if (room?.roomId && me) {
       gameService.sendChat(room.roomId, myPlayerId, me.name, text);
     }
@@ -169,7 +169,7 @@ export default function App() {
       <main className="flex-1">
         {!room ? (
           /* Landing Screen */
-          <div className="max-w-4xl mx-auto px-4 py-8 sm:py-16 space-y-12 animate-in fade-in duration-300">
+          <div className="max-w-4xl mx-auto px-4 py-8 sm:py-16 space-y-12 opacity-100">
             {/* ... hero and form ... */}
             <div className="text-center space-y-4 max-w-2xl mx-auto">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold">
@@ -309,7 +309,7 @@ export default function App() {
           </div>
         ) : (room as any).status === 'LOADING' ? (
           /* Loading Screen */
-          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 animate-in fade-in duration-500">
+          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 opacity-100">
             <div className="relative">
               <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
               <Flame className="absolute inset-0 m-auto w-6 h-6 text-amber-500 animate-pulse" />

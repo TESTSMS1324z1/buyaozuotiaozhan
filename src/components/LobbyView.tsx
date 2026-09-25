@@ -30,8 +30,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const [customText, setCustomText] = useState('');
   const [customType, setCustomType] = useState<'ACTION' | 'WORD'>('ACTION');
 
-  const myPlayer = players.find((p) => p.id === myPlayerId);
-  const allReady = players.length >= 2 ? players.filter((p) => !p.isHost).every((p) => p.isReady) : true;
+  const myPlayer = players?.find((p) => p.id === myPlayerId);
+  const allReady = (players?.length || 0) >= 2 ? players?.filter((p) => !p.isHost).every((p) => p.isReady) : true;
 
   const handleCopy = () => {
     const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
@@ -52,7 +52,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
   const toggleCategory = (cat: string) => {
     if (!isHost) return;
-    const current = new Set(settings.deckCategories);
+    const current = new Set(settings?.deckCategories || []);
     if (current.has(cat)) {
       if (current.size > 1) {
         current.delete(cat);
@@ -64,7 +64,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8 space-y-8 animate-in fade-in duration-300">
+    <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8 space-y-8 opacity-100">
       {/* Hero Invitation Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-slate-900 via-slate-900/90 to-amber-950/20 shadow-2xl p-6 sm:p-8">
         <div className="absolute -top-24 -right-24 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -116,16 +116,16 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <span>在線玩家名單</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
-                {players.length} 人
+                {players?.length || 0} 人
               </span>
             </h2>
             <span className="text-xs text-slate-400">
-              {players.length < 2 ? '（建議 2 人以上遊玩更刺激）' : '全員準備好即可開戰'}
+              {(players?.length || 0) < 2 ? '（建議 2 人以上遊玩更刺激）' : '全員準備好即可開戰'}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {players.map((player) => {
+            {players?.map((player) => {
               const isMe = player.id === myPlayerId;
               return (
                 <div
@@ -217,7 +217,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </button>
             )}
           </div>
-          {isHost && !allReady && players.length >= 2 && (
+          {isHost && !allReady && (players?.length || 0) >= 2 && (
             <p className="text-xs text-amber-400/80 text-center">
               提示：尚有玩家未準備，但房主仍可直接發牌開始遊戲
             </p>
@@ -243,7 +243,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 { id: 'body', label: '🤸‍♂️ 身體搞怪動作', desc: '托腮、點頭兩次、摸鼻' },
                 { id: 'hardcore', label: '🔥 綜藝高難度篇', desc: '誇人、叫名字、抱胸' },
               ].map((cat) => {
-                const active = settings.deckCategories.includes(cat.id);
+                const active = settings?.deckCategories?.includes(cat.id) ?? false;
                 return (
                   <button
                     key={cat.id}
@@ -326,13 +326,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </div>
             </form>
 
-            {settings.customCards.length > 0 && (
+            {settings?.customCards?.length > 0 && (
               <div className="max-h-28 overflow-y-auto space-y-1.5 pt-2">
                 <span className="text-[11px] font-medium text-slate-400 block">
-                  已加入的自訂牌 ({settings.customCards.length}):
+                  已加入的自訂牌 ({settings?.customCards?.length}):
                 </span>
                 <div className="flex flex-wrap gap-1.5">
-                  {settings.customCards.map((c, idx) => (
+                  {settings?.customCards?.map((c, idx) => (
                     <span
                       key={idx}
                       className="text-xs px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700/60 text-slate-300 flex items-center gap-1"

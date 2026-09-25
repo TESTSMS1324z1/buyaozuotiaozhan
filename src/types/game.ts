@@ -1,4 +1,4 @@
-export type GameStatus = 'LOBBY' | 'PLAYING' | 'ROUND_END' | 'GAME_OVER';
+export type GameStatus = 'LOADING' | 'LOBBY' | 'PLAYING' | 'ROUND_END' | 'GAME_OVER';
 
 export interface Player {
   id: string;
