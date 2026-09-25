@@ -21,7 +21,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps --no-audit
 
       - name: Run TypeScript type check
         run: npm run lint || echo "⚠️ Linting found some issues, but continuing build..."
