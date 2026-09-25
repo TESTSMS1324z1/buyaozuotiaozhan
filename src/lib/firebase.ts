@@ -1,11 +1,13 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth();
+
+const provider = new GoogleAuthProvider();
 
 // Test connection as required by skill
 async function testConnection() {
@@ -20,10 +22,16 @@ async function testConnection() {
 }
 testConnection();
 
-// Auto sign-in anonymously for game access
-export const loginAnonymously = async () => {
+// Sign in with Google
+export const loginWithGoogle = async () => {
   if (!auth.currentUser) {
-    await signInAnonymously(auth);
+    try {
+      const result = await signInWithPopup(auth, provider);
+      return result.user;
+    } catch (error) {
+      console.error("Error signing in with Google", error);
+      throw error;
+    }
   }
   return auth.currentUser;
 };
