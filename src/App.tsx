@@ -36,6 +36,19 @@ export default function App() {
     }
   }, []);
 
+  // Loading Timeout Logic
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (room?.status === 'LOADING') {
+      timeout = setTimeout(() => {
+        setErrorMsg('連線超時，請檢查網絡或房間代碼是否正確');
+        setRoom(null);
+        setIsJoining(false);
+      }, 10000); // 10 seconds timeout
+    }
+    return () => clearTimeout(timeout);
+  }, [room?.status]);
+
   // Firebase Subscription
   useEffect(() => {
     if (room?.roomId && myPlayerId) {
@@ -57,14 +70,14 @@ export default function App() {
       );
       
       setMyPlayerId(playerId);
-      setRoom({ roomId } as any); // Temporary stub until subscription kicks in
+      // Wait for subscription to provide full data
+      setRoom({ roomId, status: 'LOADING' } as any);
       
       const url = new URL(window.location.href);
       url.searchParams.set('room', roomId);
       window.history.replaceState({}, '', url.toString());
     } catch (err: any) {
       setErrorMsg(err.message || '加入房間失敗');
-    } finally {
       setIsJoining(false);
     }
   };
@@ -147,7 +160,7 @@ export default function App() {
 
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500/30">
       <Navbar
         roomId={room?.roomId}
         onOpenRules={() => setRulesOpen(true)}
@@ -155,9 +168,9 @@ export default function App() {
 
       <main className="flex-1">
         {!room ? (
-          /* Landing Screen: Create or Join Room */
+          /* Landing Screen */
           <div className="max-w-4xl mx-auto px-4 py-8 sm:py-16 space-y-12 animate-in fade-in duration-300">
-            {/* Hero Title Lockup */}
+            {/* ... hero and form ... */}
             <div className="text-center space-y-4 max-w-2xl mx-auto">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -292,6 +305,18 @@ export default function App() {
                   察覺對手意圖了嗎？隨時發起「破咒推理」，成功猜出自己牌面即可逆轉回血！
                 </p>
               </div>
+            </div>
+          </div>
+        ) : (room as any).status === 'LOADING' ? (
+          /* Loading Screen */
+          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 animate-in fade-in duration-500">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
+              <Flame className="absolute inset-0 m-auto w-6 h-6 text-amber-500 animate-pulse" />
+            </div>
+            <div className="text-center space-y-2">
+              <h2 className="text-xl font-bold text-white">正在連線至房間...</h2>
+              <p className="text-slate-500 text-sm">正在同步遊戲數據與卡牌庫</p>
             </div>
           </div>
         ) : room.status === 'LOBBY' ? (

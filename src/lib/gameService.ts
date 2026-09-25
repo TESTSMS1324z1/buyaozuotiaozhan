@@ -93,11 +93,15 @@ export const gameService = {
         currentRoomData = snapshot.data();
         notify();
       }
+    }, (error) => {
+      console.error("Room sync error:", error);
     });
 
     const unsubPlayers = onSnapshot(playersRef, (snapshot) => {
       currentPlayers = snapshot.docs.map(d => d.data() as Player);
       notify();
+    }, (error) => {
+      console.error("Players sync error:", error);
     });
 
     const unsubSecrets = onSnapshot(secretsRef, (snapshot) => {
@@ -105,6 +109,8 @@ export const gameService = {
         currentSecrets[d.id] = d.data().card;
       });
       notify();
+    }, (error) => {
+      console.error("Secrets sync error:", error);
     });
 
     return () => {
