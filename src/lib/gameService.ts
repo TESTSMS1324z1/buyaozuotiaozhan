@@ -74,11 +74,19 @@ export const gameService = {
 
     const notify = () => {
       if (currentRoomData && currentPlayers.length > 0) {
-        // Merge secrets into players (only if we can see them)
-        const playersWithCards = currentPlayers.map(p => ({
-          ...p,
-          card: currentSecrets[p.id] || (p.id === playerId ? '???' : '')
-        }));
+        // Merge secrets into players
+        const playersWithCards = currentPlayers.map(p => {
+          const secretCard = currentSecrets[p.id];
+          // Determine if we should reveal the card
+          // Host sees all, players see others' cards, but not their own (unless reveal logic exists)
+          const isMe = p.id === playerId;
+          const isHost = currentRoomData.hostId === playerId;
+          
+          return {
+            ...p,
+            forbiddenCard: (isHost || !isMe) ? secretCard : undefined
+          };
+        });
 
         onUpdate({
           ...currentRoomData,
@@ -128,18 +136,35 @@ export const gameService = {
 
   async startGame(roomId: string, players: Player[]) {
     const roomRef = doc(db, 'rooms', roomId);
+    const roomDoc = await getDoc(roomRef);
+    if (!roomDoc.exists()) return;
     
-    // Shuffle cards
-    const shuffled = [...PRESET_CARDS].sort(() => Math.random() - 0.5);
+    const settings = roomDoc.data().settings as GameSettings;
+    const categories = settings?.deckCategories || ['daily', 'chat'];
+    
+    // Filter cards by category
+    let pool = PRESET_CARDS.filter(c => categories.includes(c.category));
+    if (pool.length < players.length) pool = PRESET_CARDS; // Fallback to all if pool too small
+    
+    // Better shuffle (Fisher-Yates)
+    const shuffled = [...pool];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
     
     await runTransaction(db, async (transaction) => {
-      // Set room status
-      transaction.update(roomRef, { status: 'PLAYING' });
+      // Set room status and clear old violations
+      transaction.update(roomRef, { 
+        status: 'PLAYING',
+        activeViolation: null 
+      });
       
       // Set secrets
       players.forEach((p, i) => {
         const secretRef = doc(db, 'rooms', roomId, 'secrets', p.id);
-        transaction.set(secretRef, { card: shuffled[i % shuffled.length] });
+        const card = shuffled[i % shuffled.length];
+        transaction.set(secretRef, { card });
       });
     });
   },
@@ -174,14 +199,22 @@ export const gameService = {
     sounds.playHammer();
   },
 
-  async guessCard(roomId: string, playerId: string, guess: string, actualCard: string) {
-    if (guess === actualCard) {
-      // Success! Gain life? Or just clear card?
-      // In this version, we'll just play a sound and maybe announce
+  async guessCard(roomId: string, playerId: string, guess: string) {
+    const secretRef = doc(db, 'rooms', roomId, 'secrets', playerId);
+    const secretDoc = await getDoc(secretRef);
+    
+    if (!secretDoc.exists()) return false;
+    
+    const actualCard = secretDoc.data().card;
+    const isCorrect = actualCard.content.includes(guess) || guess.includes(actualCard.content);
+    
+    if (isCorrect) {
       sounds.playSuccess();
+      // Logic for success (e.g. gain life) could go here
     } else {
       sounds.playBuzzer();
     }
+    return isCorrect;
   },
 
   async sendChat(roomId: string, playerId: string, name: string, text: string) {

@@ -38,19 +38,21 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
   const [selfPeekUnlocked, setSelfPeekUnlocked] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [showViolationBanner, setShowViolationBanner] = useState<ViolationEvent | null>(null);
+  const [lastViolationTime, setLastViolationTime] = useState(0);
 
   const myPlayer = players?.find((p) => p.id === myPlayerId);
 
   // Watch violation events for dramatic banner animation
   useEffect(() => {
-    if (activeViolation) {
+    if (activeViolation && activeViolation.timestamp > lastViolationTime) {
       setShowViolationBanner(activeViolation);
+      setLastViolationTime(activeViolation.timestamp);
       const timer = setTimeout(() => {
         setShowViolationBanner(null);
       }, 3500);
       return () => clearTimeout(timer);
     }
-  }, [activeViolation]);
+  }, [activeViolation, lastViolationTime]);
 
   const handleNextTopic = () => {
     sounds.playDing();
@@ -67,6 +69,7 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
     if (!guessInput.trim()) return;
     onGuessOwnCard(guessInput.trim());
     setGuessInput('');
+    // Modal will be closed by the parent if needed or keep it open if we want to show result
     setGuessModalOpen(false);
   };
 

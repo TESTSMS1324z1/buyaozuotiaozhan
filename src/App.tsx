@@ -117,14 +117,14 @@ export default function App() {
     }
   };
 
-  const handleGuessOwnCard = (guess: string) => {
-    // In Firebase version, we need to find the card from someone else or wait for local check
-    // For simplicity, we just trigger the sound check
-    const me = room?.players?.find(p => p.id === myPlayerId);
-    // Note: The real card is in 'secrets' collection, but current player can't read it.
-    // We'd need a cloud function or a different check if we want it fully server-side.
-    // For now, let's just use the '???' as a placeholder or assume client check via other players.
-    gameService.guessCard(room?.roomId || '', myPlayerId, guess, '');
+  const handleGuessOwnCard = async (guess: string) => {
+    if (room?.roomId) {
+      const isCorrect = await gameService.guessCard(room.roomId, myPlayerId, guess);
+      if (isCorrect) {
+        // You can add a system message or local state here
+        handleSendChat(`💡 我猜對了！我的卡牌真的是「${guess}」！`);
+      }
+    }
   };
 
   const handleSendChat = (text: string) => {
