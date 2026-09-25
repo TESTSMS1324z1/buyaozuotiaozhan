@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Player, ViolationEvent, ChatMessage } from '../types/game';
-import { RefreshCw, Send, Eye, ShieldAlert, Sparkles, AlertCircle, Heart, MessageSquare } from 'lucide-react';
+import { RefreshCw, Send, Eye, ShieldAlert, Sparkles, AlertCircle, Heart, MessageSquare, X } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
 interface GameTableViewProps {
@@ -38,21 +38,53 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
   const [selfPeekUnlocked, setSelfPeekUnlocked] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [showViolationBanner, setShowViolationBanner] = useState<ViolationEvent | null>(null);
-  const [lastViolationTime, setLastViolationTime] = useState(0);
+  
+  // Use refs to track violation timestamps and timer to prevent re-render cleanup cycles
+  const lastViolationTimeRef = useRef<number>(0);
+  const bannerTimerRef = useRef<any>(null);
 
   const myPlayer = players?.find((p) => p.id === myPlayerId);
 
   // Watch violation events for dramatic banner animation
   useEffect(() => {
-    if (activeViolation && activeViolation.timestamp > lastViolationTime) {
-      setShowViolationBanner(activeViolation);
-      setLastViolationTime(activeViolation.timestamp);
-      const timer = setTimeout(() => {
-        setShowViolationBanner(null);
-      }, 3500);
-      return () => clearTimeout(timer);
+    if (!activeViolation) {
+      setShowViolationBanner(null);
+      if (bannerTimerRef.current) {
+        clearTimeout(bannerTimerRef.current);
+      }
+      return;
     }
-  }, [activeViolation, lastViolationTime]);
+
+    const now = Date.now();
+    // Only trigger if:
+    // 1. It is a new violation event we haven't displayed yet
+    // 2. It occurred recently (within last 8 seconds) so stale data on page refresh won't pop up!
+    if (activeViolation.timestamp > lastViolationTimeRef.current) {
+      lastViolationTimeRef.current = activeViolation.timestamp;
+
+      if (now - activeViolation.timestamp < 8000) {
+        setShowViolationBanner(activeViolation);
+
+        if (bannerTimerRef.current) {
+          clearTimeout(bannerTimerRef.current);
+        }
+
+        // Auto close after 2.2 seconds
+        bannerTimerRef.current = setTimeout(() => {
+          setShowViolationBanner(null);
+        }, 2200);
+      }
+    }
+  }, [activeViolation]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (bannerTimerRef.current) {
+        clearTimeout(bannerTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleNextTopic = () => {
     sounds.playDing();
@@ -84,8 +116,23 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 opacity-100">
       {/* Violation Drama Overlay */}
       {showViolationBanner && (
-        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in zoom-in-95 duration-200">
-          <div className="pointer-events-auto max-w-md w-full p-6 rounded-2xl bg-gradient-to-b from-rose-900 via-slate-900 to-slate-950 border-2 border-rose-500 shadow-2xl text-center space-y-4 animate-bounce">
+        <div
+          onClick={() => setShowViolationBanner(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-150 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative pointer-events-auto max-w-md w-full p-6 rounded-2xl bg-gradient-to-b from-rose-950 via-slate-900 to-slate-950 border-2 border-rose-500 shadow-2xl text-center space-y-4 cursor-default animate-bounce"
+          >
+            {/* Close button in corner */}
+            <button
+              onClick={() => setShowViolationBanner(null)}
+              className="absolute top-3 right-3 p-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              title="關閉"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
             <div className="w-20 h-20 mx-auto rounded-full bg-rose-500/20 border-2 border-rose-400 flex items-center justify-center shadow-lg shadow-rose-500/40">
               <img
                 src="/src/assets/images/penalty_toy_hammer_1790299607800.jpg"
@@ -99,15 +146,24 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
                 🚨 抓到了！違規暴扣！
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-white">
-                {showViolationBanner.targetPlayerName} 犯規！
+                {showViolationBanner.targetPlayerName || '有玩家'} 犯規！
               </h2>
               <div className="mt-2 inline-block px-3 py-1.5 rounded-lg bg-rose-950/80 border border-rose-500/40 text-amber-300 text-sm font-bold">
-                {showViolationBanner.violatedRule}
+                {showViolationBanner.violatedRule || '禁忌動作或禁詞被抓包！'}
               </div>
             </div>
             <p className="text-xs text-rose-200">
-              檢舉人：<strong className="text-white">{showViolationBanner.reporterName}</strong> · 生命扣除 1 ❤️
+              檢舉人：<strong className="text-white">{showViolationBanner.reporterName || '隊友'}</strong> · 生命扣除 1 ❤️
             </p>
+
+            <div className="pt-2">
+              <button
+                onClick={() => setShowViolationBanner(null)}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+              >
+                知道了 (點擊關閉)
+              </button>
+            </div>
           </div>
         </div>
       )}

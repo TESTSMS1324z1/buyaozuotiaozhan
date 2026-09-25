@@ -13,7 +13,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { db, getLocalPlayerId } from './firebase';
-import { RoomState, Player, ServerMessage, ViolationEvent } from '../types/game';
+import { RoomState, Player, ServerMessage, ViolationEvent, GameSettings } from '../types/game';
 import { PRESET_CARDS, VARIETY_TOPICS } from '../data/defaultCards';
 import { sounds } from '../utils/audio';
 
@@ -181,22 +181,36 @@ export const gameService = {
       if (currentLives <= 0) return;
 
       const newLives = currentLives - 1;
-      transaction.update(playerRef, { lives: newLives });
+      const targetName = playerDoc.data().name || '玩家';
+      const penaltyCount = (playerDoc.data().penaltyCount || 0) + 1;
+      transaction.update(playerRef, {
+        lives: newLives,
+        penaltyCount,
+        isEliminated: newLives <= 0
+      });
 
       // Update room violation status
       transaction.update(roomRef, {
         activeViolation: {
           targetPlayerId,
-          attackerName,
-          timestamp: Date.now()
+          targetPlayerName: targetName,
+          reporterName: attackerName,
+          timestamp: Date.now(),
+          violatedRule: '禁忌動作或禁詞被抓包！'
         }
       });
-      
-      // Check for game over
-      // (This would normally check all players, but we can do it reactively)
     });
     
     sounds.playHammer();
+
+    // Auto-clear violation from DB after 2.5 seconds so it doesn't stay active in database
+    setTimeout(async () => {
+      try {
+        await updateDoc(roomRef, { activeViolation: null });
+      } catch (e) {
+        console.error("Error clearing violation:", e);
+      }
+    }, 2500);
   },
 
   async guessCard(roomId: string, playerId: string, guess: string) {
