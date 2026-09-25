@@ -11,7 +11,6 @@ import { LobbyView } from './components/LobbyView';
 import { GameTableView } from './components/GameTableView';
 import { GameOverModal } from './components/GameOverModal';
 import { gameService } from './lib/gameService';
-import { auth } from './lib/firebase';
 import { Sparkles, ArrowRight, ShieldCheck, Flame, Laugh } from 'lucide-react';
 
 const AVATAR_OPTIONS = ['😎', '🤠', '🐱', '🦊', '🐼', '🦁', '👻', '🤖', '🍕', '🚀', '🎭', '🦄'];

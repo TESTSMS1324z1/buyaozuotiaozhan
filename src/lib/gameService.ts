@@ -12,7 +12,7 @@ import {
   deleteDoc,
   getDocs
 } from 'firebase/firestore';
-import { db, loginWithGoogle } from './firebase';
+import { db, getLocalPlayerId } from './firebase';
 import { RoomState, Player, ServerMessage, ViolationEvent } from '../types/game';
 import { PRESET_CARDS, VARIETY_TOPICS } from '../data/defaultCards';
 import { sounds } from '../utils/audio';
@@ -23,9 +23,7 @@ const generateRoomId = () => Math.random().toString(36).substring(2, 7).toUpperC
 export const gameService = {
   // Join or Create Room
   async joinRoom(roomIdInput: string, name: string, avatar: string) {
-    const user = await loginWithGoogle();
-    if (!user) throw new Error('Authentication failed');
-    const playerId = user.uid;
+    const playerId = getLocalPlayerId();
     const roomId = roomIdInput || generateRoomId();
 
     const roomRef = doc(db, 'rooms', roomId);
