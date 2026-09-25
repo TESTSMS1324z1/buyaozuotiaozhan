@@ -1,0 +1,48 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Build & Verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript type check
+        run: npm run lint
+
+      - name: Build frontend for production
+        run: npm run build
+
+      - name: Verify build artifacts
+        run: |
+          test -d dist
+          test -f dist/index.html
+          echo "✅ Production build successfully verified!"
+
+  # Optional auto-deploy trigger example (e.g. Render / Railway / Webhook)
+  # deploy:
+  #   needs: build-and-test
+  #   if: github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Trigger Cloud Deployment Webhook
+  #       run: |
+  #         # curl -X POST "${{ secrets.DEPLOY_HOOK_URL }}"
+  #         echo "Ready for cloud deployment"

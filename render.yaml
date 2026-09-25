@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: dont-do-it-challenge
+    env: docker
+    plan: free
+    region: singapore # 選擇離你近的地區，延遲更低
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+    autoDeploy: true

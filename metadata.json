@@ -1,0 +1,6 @@
+{
+  "name": "不要做挑戰 - 線上多人派對遊戲",
+  "description": "經典綜藝「不要做挑戰」在線多人派對遊戲！創建房間、分享邀請連結，好友實時對戰。頭戴神秘禁止詞與動作，誘惑對手犯規，爆笑對決！",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
