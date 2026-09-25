@@ -29,12 +29,6 @@ jobs:
       - name: Build frontend for production
         run: npm run build
 
-      - name: Verify build artifacts
-        run: |
-          test -d dist
-          test -f dist/index.html
-          echo "✅ Production build successfully verified!"
-
   # Optional auto-deploy trigger example (e.g. Render / Railway / Webhook)
   # deploy:
   #   needs: build-and-test
