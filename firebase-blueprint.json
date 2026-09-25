@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Game Room",
+      "description": "State of the current game session",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "playing", "game-over"],
+          "description": "Current status of the game"
+        },
+        "hostId": {
+          "type": "string",
+          "description": "UID of the player who is the host"
+        },
+        "topic": {
+          "type": "string",
+          "description": "The current variety show topic"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the room was created"
+        },
+        "lastViolation": {
+          "type": "object",
+          "description": "Details of the most recent penalty"
+        }
+      },
+      "required": ["status", "hostId", "topic", "createdAt"]
+    },
+    "Player": {
+      "title": "Player",
+      "description": "A participant in the game room",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Display name"
+        },
+        "avatar": {
+          "type": "string",
+          "description": "Emoji avatar"
+        },
+        "card": {
+          "type": "string",
+          "description": "The secret 'Don't Do It' card"
+        },
+        "lives": {
+          "type": "integer",
+          "description": "Number of hearts remaining"
+        },
+        "isReady": {
+          "type": "boolean",
+          "description": "Ready status"
+        },
+        "isHost": {
+          "type": "boolean",
+          "description": "If the player is the host"
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the player joined"
+        }
+      },
+      "required": ["name", "avatar", "lives", "isReady", "isHost", "joinedAt"]
+    }
+  },
+  "firestore": {
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Collection of active game rooms"
+    },
+    "/rooms/{roomId}/players/{playerId}": {
+      "schema": "Player",
+      "description": "Players inside a specific room"
+    },
+    "/rooms/{roomId}/secrets/{playerId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "card": { "type": "string" }
+        }
+      },
+      "description": "Secret cards hidden from their owners"
+    }
+  }
+}
