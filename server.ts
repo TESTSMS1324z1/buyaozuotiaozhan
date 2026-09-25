@@ -3,8 +3,8 @@ import express from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { RoomState, Player, ClientAction, ServerMessage, ViolationEvent } from './src/types/game.js';
-import { PRESET_CARDS, VARIETY_TOPICS } from './src/data/defaultCards.js';
+import { RoomState, Player, ClientAction, ServerMessage, ViolationEvent } from './src/types/game';
+import { PRESET_CARDS, VARIETY_TOPICS } from './src/data/defaultCards';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
