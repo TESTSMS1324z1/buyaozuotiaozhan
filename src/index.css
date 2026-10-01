@@ -1,1 +1,166 @@
 @import "tailwindcss";
+
+:root {
+  /* Cartoon Color Palette */
+  --c-bg-1: #fff7e6;
+  --c-bg-2: #ffe9c7;
+  --c-yellow: #ffd23f;
+  --c-orange: #ff9f1c;
+  --c-pink: #ff5d8f;
+  --c-red: #ff3b3b;
+  --c-blue: #4dabff;
+  --c-purple: #9b5de5;
+  --c-green: #2ec27e;
+  --c-ink: #2b2118;
+  --c-ink-soft: #7a6a58;
+  --c-white: #ffffff;
+  --c-line: #e8ddcb;
+
+  --radius-lg: 28px;
+  --radius-md: 20px;
+  --radius-sm: 14px;
+  --radius-pill: 999px;
+
+  --border-w: 4px;
+  --border-w-thin: 3px;
+
+  --shadow-card: 0 5px 0 rgba(43, 33, 24, 0.18);
+  --shadow-btn: 0 5px 0 rgba(43, 33, 24, 0.25);
+}
+
+body {
+  font-family: 'Baloo 2', 'Noto Sans TC', system-ui, sans-serif;
+  color: var(--c-ink);
+}
+
+/* Floating Animation */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+
+@keyframes popIn {
+  0%   { transform: scale(0.6) rotate(-8deg); }
+  60%  { transform: scale(1.1) rotate(3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.animate-float {
+  animation: floatY 3s ease-in-out infinite;
+}
+
+/* Landscape Phone Frame Container */
+.game-phone-frame {
+  position: relative;
+  width: min(98vw, 1020px);
+  aspect-ratio: 16 / 9.6;
+  max-height: 96vh;
+  background: linear-gradient(160deg, var(--c-bg-1) 0%, var(--c-bg-2) 100%);
+  border-radius: var(--radius-lg);
+  border: var(--border-w) solid var(--c-ink);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .game-phone-frame {
+    width: 100vw;
+    height: 100vh;
+    max-height: none;
+    aspect-ratio: auto;
+    border-radius: 0;
+    border: none;
+  }
+}
+
+/* If screen is vertical mobile, allow natural scrolling container */
+@media (max-width: 640px) and (orientation: portrait) {
+  .game-phone-frame {
+    width: 100vw;
+    min-height: 100vh;
+    height: auto;
+    max-height: none;
+    aspect-ratio: auto;
+    border-radius: 0;
+    border: none;
+  }
+}
+
+/* Cartoon Buttons */
+.btn-cartoon {
+  font-family: inherit;
+  font-weight: 800;
+  border: var(--border-w) solid var(--c-ink);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-btn);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  white-space: nowrap;
+}
+.btn-cartoon:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 rgba(43, 33, 24, 0.25);
+}
+
+.btn-cartoon-orange {
+  background: var(--c-orange);
+  color: var(--c-white);
+}
+
+.btn-cartoon-white {
+  background: var(--c-white);
+  color: var(--c-ink);
+}
+
+.btn-cartoon-purple {
+  background: var(--c-purple);
+  color: var(--c-white);
+}
+
+.btn-cartoon-green {
+  background: var(--c-green);
+  color: var(--c-white);
+}
+
+.btn-cartoon-rose {
+  background: var(--c-pink);
+  color: var(--c-white);
+}
+
+/* Settings Chip */
+.cartoon-chip {
+  font-family: inherit;
+  font-weight: 800;
+  border-radius: var(--radius-pill);
+  border: var(--border-w-thin) solid var(--c-ink);
+  background: var(--c-white);
+  color: var(--c-ink);
+  transition: all 0.08s;
+  cursor: pointer;
+}
+.cartoon-chip:active {
+  transform: scale(0.95);
+}
+.cartoon-chip.is-on {
+  background: var(--c-orange);
+  color: var(--c-white);
+  box-shadow: var(--shadow-card);
+}
+
+/* Flash feedback */
+.flash-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  animation: flashPulse 1.8s ease-out forwards;
+}
+
+@keyframes flashPulse {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; }
+}

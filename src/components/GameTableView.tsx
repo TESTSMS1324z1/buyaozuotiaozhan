@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Player, ViolationEvent, ChatMessage } from '../types/game';
-import { RefreshCw, Send, Eye, ShieldAlert, Sparkles, AlertCircle, Heart, MessageSquare, X } from 'lucide-react';
+import { Eye, Sparkles, MessageSquare, X, Send } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
 interface GameTableViewProps {
@@ -18,6 +18,14 @@ interface GameTableViewProps {
   onSendChat: (text: string) => void;
   onResetGame: () => void;
 }
+
+const PRESET_QUICK_CHATS = [
+  '你在引誘我吧？😏',
+  '哈哈抓到了！🔨',
+  '這局太難猜了！🤔',
+  '快換個話題！🔥',
+  '好險沒中招！😮',
+];
 
 export const GameTableView: React.FC<GameTableViewProps> = ({
   myPlayerId,
@@ -37,15 +45,16 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
   const [guessInput, setGuessInput] = useState('');
   const [selfPeekUnlocked, setSelfPeekUnlocked] = useState(false);
   const [chatInput, setChatInput] = useState('');
+  const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
   const [showViolationBanner, setShowViolationBanner] = useState<ViolationEvent | null>(null);
-  
-  // Use refs to track violation timestamps and timer to prevent re-render cleanup cycles
+
   const lastViolationTimeRef = useRef<number>(0);
   const bannerTimerRef = useRef<any>(null);
 
   const myPlayer = players?.find((p) => p.id === myPlayerId);
+  const opponents = players?.filter((p) => p.id !== myPlayerId) || [];
 
-  // Watch violation events for dramatic banner animation
+  // Watch violation events for dramatic full-screen flash animation
   useEffect(() => {
     if (!activeViolation) {
       setShowViolationBanner(null);
@@ -56,9 +65,6 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
     }
 
     const now = Date.now();
-    // Only trigger if:
-    // 1. It is a new violation event we haven't displayed yet
-    // 2. It occurred recently (within last 8 seconds) so stale data on page refresh won't pop up!
     if (activeViolation.timestamp > lastViolationTimeRef.current) {
       lastViolationTimeRef.current = activeViolation.timestamp;
 
@@ -77,7 +83,6 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
     }
   }, [activeViolation]);
 
-  // Clean up timer on unmount
   useEffect(() => {
     return () => {
       if (bannerTimerRef.current) {
@@ -101,7 +106,6 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
     if (!guessInput.trim()) return;
     onGuessOwnCard(guessInput.trim());
     setGuessInput('');
-    // Modal will be closed by the parent if needed or keep it open if we want to show result
     setGuessModalOpen(false);
   };
 
@@ -112,295 +116,285 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
     setChatInput('');
   };
 
+  const handleQuickChat = (text: string) => {
+    onSendChat(text);
+    sounds.playDing();
+  };
+
+  // Card color cycle
+  const cardColorClasses = [
+    'bg-[#ff5d8f] rotate-[-2deg]',
+    'bg-[#4dabff] rotate-[2deg]',
+    'bg-[#9b5de5] rotate-[-3deg]',
+    'bg-[#ff9f1c] rotate-[1.5deg]',
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 opacity-100">
-      {/* Violation Drama Overlay */}
+    <div className="relative flex-1 flex flex-col p-3 sm:p-4 justify-between overflow-hidden select-none">
+      {/* 全螢幕違規暴扣閃光回饋 (Flash Overlay) */}
       {showViolationBanner && (
         <div
           onClick={() => setShowViolationBanner(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-150 cursor-pointer"
+          className="flash-overlay bg-[#ff3b3b]/95 text-white cursor-pointer"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative pointer-events-auto max-w-md w-full p-6 rounded-2xl bg-gradient-to-b from-rose-950 via-slate-900 to-slate-950 border-2 border-rose-500 shadow-2xl text-center space-y-4 cursor-default animate-bounce"
+            className="text-center space-y-2 p-6 rounded-3xl bg-[#2b2118]/40 border-4 border-white max-w-sm w-full mx-4 shadow-2xl animate-bounce"
           >
-            {/* Close button in corner */}
+            <div className="text-6xl drop-shadow-md">🔨</div>
+            <div className="text-3xl font-black tracking-tight text-white drop-shadow-lg">
+              抓到了！犯規！
+            </div>
+            <div className="text-lg font-black text-[#ffd23f]">
+              {showViolationBanner.targetPlayerName} 違規！
+            </div>
+            <div className="inline-block px-3 py-1 rounded-xl bg-white text-[#2b2118] text-xs font-black">
+              {showViolationBanner.violatedRule || '禁忌動作或禁詞被抓包！'}
+            </div>
+            <div className="text-xs font-bold text-white/90 pt-1">
+              檢舉人: {showViolationBanner.reporterName || '隊友'} · 生命扣除 1 ❤
+            </div>
             <button
               onClick={() => setShowViolationBanner(null)}
-              className="absolute top-3 right-3 p-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-              title="關閉"
+              className="mt-2 btn-cartoon btn-cartoon-white px-5 py-1 text-xs cursor-pointer"
             >
-              <X className="w-4 h-4" />
+              知道了 (點擊關閉)
             </button>
-
-            <div className="w-20 h-20 mx-auto rounded-full bg-rose-500/20 border-2 border-rose-400 flex items-center justify-center shadow-lg shadow-rose-500/40">
-              <img
-                src="/src/assets/images/penalty_toy_hammer_1790299607800.jpg"
-                alt="Penalty Toy Hammer"
-                referrerPolicy="no-referrer"
-                className="w-16 h-16 object-contain drop-shadow"
-              />
-            </div>
-            <div>
-              <span className="text-xs uppercase tracking-widest font-black text-rose-400 block mb-1">
-                🚨 抓到了！違規暴扣！
-              </span>
-              <h2 className="text-xl sm:text-2xl font-black text-white">
-                {showViolationBanner.targetPlayerName || '有玩家'} 犯規！
-              </h2>
-              <div className="mt-2 inline-block px-3 py-1.5 rounded-lg bg-rose-950/80 border border-rose-500/40 text-amber-300 text-sm font-bold">
-                {showViolationBanner.violatedRule || '禁忌動作或禁詞被抓包！'}
-              </div>
-            </div>
-            <p className="text-xs text-rose-200">
-              檢舉人：<strong className="text-white">{showViolationBanner.reporterName || '隊友'}</strong> · 生命扣除 1 ❤️
-            </p>
-
-            <div className="pt-2">
-              <button
-                onClick={() => setShowViolationBanner(null)}
-                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
-              >
-                知道了 (點擊關閉)
-              </button>
-            </div>
           </div>
         </div>
       )}
 
-      {/* Variety Show Topic Stage */}
-      <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-r from-slate-900 via-slate-900/95 to-amber-950/30 p-5 sm:p-6 shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>綜藝話題引導 · 誘惑對手說出禁詞</span>
-            </div>
-            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+      {/* 1. 遊戲頂部 HUD */}
+      <header className="flex items-center justify-between gap-2 shrink-0 z-10">
+        {/* 左側：綜藝話題卡 */}
+        <div className="flex items-center gap-2 bg-white border-3 border-[#2b2118] rounded-2xl px-3 py-1 shadow-[0_4px_0_rgba(43,33,24,0.18)] max-w-xs sm:max-w-md truncate">
+          <span className="text-base sm:text-lg shrink-0">🔥</span>
+          <div className="truncate">
+            <span className="text-[10px] font-bold text-[#7a6a58] block leading-none">綜藝引導話題</span>
+            <span className="text-xs sm:text-sm font-black text-[#ff9f1c] truncate block">
               {currentTopic}
-            </h2>
-            <p className="text-xs text-slate-400">
-              ⚠️ 規則提醒：聊天越熱烈，對手越容易露出破綻！保持安靜或消極聊天小心被全員圍剿喔！
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 shrink-0">
-            <button
-              onClick={handleNextTopic}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-bold transition-all shadow-sm active:scale-95"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>換個辛辣話題</span>
-            </button>
-            {isHost && (
-              <button
-                onClick={onResetGame}
-                className="px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 text-xs font-semibold transition-colors"
-              >
-                重置回大廳
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Playing Arena Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Players Forehead Cards Area */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <span>全員額頭牌位</span>
-              <span className="text-xs text-slate-400 font-normal">
-                （你只能看別人的牌，自己的牌絕對保密！）
-              </span>
-            </h3>
-            <span className="text-xs text-amber-400 font-medium">
-              存活人數: {players?.filter((p) => !p.isEliminated).length || 0} / {players?.length || 0}
             </span>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {players?.map((player) => {
-              const isMe = player.id === myPlayerId;
+        {/* 中央：對決回合 pill */}
+        <div className="bg-[#9b5de5] text-white border-3 border-[#2b2118] rounded-full px-4 py-1.5 font-black text-xs sm:text-sm shadow-[0_4px_0_rgba(43,33,24,0.18)] whitespace-nowrap hidden xs:block">
+          激烈對決中 ⚡
+        </div>
+
+        {/* 右側：我的生命值 ❤ */}
+        <div className="flex items-center gap-1 bg-white border-3 border-[#2b2118] rounded-2xl px-3 py-1.5 shadow-[0_4px_0_rgba(43,33,24,0.18)]">
+          <span className="text-[10px] font-black text-[#7a6a58] mr-1 hidden sm:inline">生命:</span>
+          {Array.from({ length: myPlayer?.maxLives || 3 }).map((_, i) => (
+            <span
+              key={i}
+              className={`text-lg sm:text-xl leading-none transition-transform ${
+                i < (myPlayer?.lives || 0) ? 'text-[#ff3b3b]' : 'text-[#d8cfc4] scale-90'
+              }`}
+            >
+              ❤
+            </span>
+          ))}
+        </div>
+      </header>
+
+      {/* 2. 遊戲主舞台：對手環繞四周 + 中央自己的神秘牌 */}
+      <main className="relative flex-1 my-2 min-h-0 flex items-center justify-center">
+        {/* 對手列表 (分佈在四周) */}
+        {opponents.length === 0 ? (
+          <div className="absolute top-2 left-2 text-xs font-bold text-[#7a6a58] bg-white/70 px-3 py-1 rounded-full border-2 border-[#2b2118]">
+            目前為單人測試模式，可點擊下方「偷瞄模式」揭牌！
+          </div>
+        ) : (
+          <div className="absolute inset-0 pointer-events-none">
+            {opponents.map((player, idx) => {
+              const colorClass = cardColorClasses[idx % cardColorClasses.length];
               const isEliminated = player.isEliminated;
+
+              // Position based on index
+              const posClasses = [
+                'top-0 left-2 sm:left-4',
+                'top-0 right-2 sm:right-4',
+                'bottom-2 left-2 sm:left-4',
+                'bottom-2 right-2 sm:right-4',
+                'top-1/2 -translate-y-1/2 left-2',
+                'top-1/2 -translate-y-1/2 right-2',
+              ];
+              const pos = posClasses[idx % posClasses.length];
 
               return (
                 <div
                   key={player.id}
-                  className={`relative flex flex-col justify-between rounded-2xl p-5 border transition-all ${
-                    isEliminated
-                      ? 'bg-slate-950/60 border-slate-900 opacity-60 grayscale'
-                      : isMe
-                      ? 'bg-gradient-to-b from-indigo-950/30 to-slate-900/90 border-indigo-500/40 shadow-xl'
-                      : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 shadow-lg'
+                  className={`absolute pointer-events-auto flex flex-col items-center gap-1 transition-all ${pos} ${
+                    isEliminated ? 'opacity-40 grayscale' : 'animate-float'
                   }`}
+                  style={{ animationDelay: `${idx * 0.4}s` }}
                 >
-                  {/* Player Profile Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl shadow-inner">
-                          {player.avatar}
-                        </div>
-                        {isEliminated && (
-                          <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded bg-rose-600 text-[10px] font-black text-white">
-                            OUT
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-extrabold text-sm text-white truncate max-w-[110px]">
-                            {player.name}
-                          </span>
-                          {isMe && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                              你自己
-                            </span>
-                          )}
-                        </div>
-                        {/* Lives & Penalty */}
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <div className="flex items-center text-xs">
-                            {Array.from({ length: player.maxLives || 3 }).map((_, i) => (
-                              <Heart
-                                key={i}
-                                className={`w-3.5 h-3.5 ${
-                                  i < player.lives
-                                    ? 'text-rose-500 fill-rose-500'
-                                    : 'text-slate-700 fill-slate-800'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-[11px] text-slate-400 font-mono">
-                            犯規: {player.penaltyCount} 次
-                          </span>
-                        </div>
-                      </div>
+                  {/* 對手頭像 */}
+                  <div className="relative">
+                    <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#ffd23f] border-3 border-[#2b2118] flex items-center justify-center text-2xl sm:text-3xl shadow-[0_4px_0_rgba(43,33,24,0.18)]">
+                      {player.avatar}
                     </div>
-                  </div>
-
-                  {/* FOREHEAD CARD DISPLAY */}
-                  <div className="my-2">
-                    {isMe ? (
-                      /* MY OWN FOREHEAD CARD: MYSTERIOUS & HIDDEN */
-                      <div className="relative overflow-hidden rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/60 to-purple-950/40 p-4 text-center min-h-[120px] flex flex-col items-center justify-center shadow-inner">
-                        {!selfPeekUnlocked ? (
-                          <>
-                            <div className="w-10 h-10 mb-1.5 rounded-full bg-indigo-500/10 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
-                              <ShieldAlert className="w-5 h-5 animate-pulse" />
-                            </div>
-                            <span className="text-xs font-black tracking-wide text-indigo-300 block">
-                              ??? 你的神秘禁止項 ???
-                            </span>
-                            <span className="text-[11px] text-indigo-400/80 block mt-0.5">
-                              （其他玩家看得一清二楚，你絕對不能看！）
-                            </span>
-                          </>
-                        ) : (
-                          /* Cheating / Peek Mode activated */
-                          <div className="space-y-1 animate-in fade-in duration-200">
-                            <span className="text-[10px] uppercase font-bold text-amber-400 block">
-                              ⚠️ 偷看模式（已揭曉）
-                            </span>
-                            <span className="text-base font-black text-white block">
-                              {player.forbiddenCard?.type === 'ACTION' ? '【動作】' : '【禁詞】'}
-                              {player.forbiddenCard?.content}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      /* OTHER PLAYERS' FOREHEAD CARDS: CLEARLY VISIBLE! */
-                      <div className="relative rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-slate-900 to-rose-950/10 p-4 text-center min-h-[120px] flex flex-col justify-center">
-                        <div className="inline-flex items-center justify-center gap-1 mx-auto px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase mb-1.5">
-                          {player.forbiddenCard?.type === 'ACTION' ? '🚫 絕對禁止動作' : '💬 絕對禁止詞彙'}
-                        </div>
-                        <h4 className="text-base sm:text-lg font-black text-white tracking-tight drop-shadow-sm">
-                          {player.forbiddenCard?.content || '摸頭髮'}
-                        </h4>
-                        <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">
-                          💡 陷阱誘餌：快引導他做出這件事！
-                        </p>
-                      </div>
+                    {isEliminated && (
+                      <span className="absolute -top-1 -right-1 text-[9px] font-black bg-red-600 text-white rounded-full px-1 py-0.2 border border-white">
+                        OUT
+                      </span>
                     )}
                   </div>
 
-                  {/* ACTION CONTROLS */}
-                  <div className="mt-4 pt-3 border-t border-slate-800/80">
-                    {isMe ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          disabled={isEliminated}
-                          onClick={() => setGuessModalOpen(true)}
-                          className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 disabled:opacity-40 text-white font-extrabold text-xs shadow-md shadow-indigo-900/30 transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>我猜到了！破咒推理</span>
-                        </button>
+                  {/* 對手的額頭牌：看得見內容！ */}
+                  <div
+                    className={`${colorClass} text-white border-3 border-[#2b2118] rounded-xl px-2.5 py-1 text-center shadow-[0_4px_0_rgba(43,33,24,0.18)] min-w-[120px] max-w-[150px]`}
+                  >
+                    <span className="block text-[9px] font-black opacity-90 tracking-wider">
+                      {player.forbiddenCard?.type === 'ACTION' ? '🚫 不可以做' : '💬 不可以說'}
+                    </span>
+                    <span className="block text-xs sm:text-sm font-black truncate drop-shadow-sm">
+                      {player.forbiddenCard?.content || '摸頭髮'}
+                    </span>
+                  </div>
 
-                        <button
-                          onClick={() => {
-                            sounds.playDing();
-                            setSelfPeekUnlocked(!selfPeekUnlocked);
-                          }}
-                          className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs transition-colors"
-                          title={selfPeekUnlocked ? '隱藏我的牌' : '偷瞄我的牌（單人測試或揭曉）'}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      /* Buzzer to smack opponent! */
-                      <button
-                        disabled={isEliminated}
-                        onClick={() => handleBuzzer(player.id)}
-                        className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 disabled:opacity-40 text-white font-black text-xs shadow-lg shadow-rose-950/40 transition-all flex items-center justify-center gap-2 active:scale-95"
-                      >
-                        <span className="text-base">🔨</span>
-                        <span>抓到了！犯規暴扣 (-1❤️)</span>
-                      </button>
-                    )}
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] font-black text-[#2b2118] bg-white border-2 border-[#2b2118] rounded-full px-2 py-0.2">
+                      {player.name}
+                    </span>
+
+                    {/* 暴扣槌按鈕 */}
+                    <button
+                      disabled={isEliminated}
+                      onClick={() => handleBuzzer(player.id)}
+                      className="btn-cartoon btn-cartoon-rose px-2 py-0.5 text-[10px] flex items-center gap-0.5 cursor-pointer disabled:opacity-40"
+                      title="抓到了！氣槌扣除愛心"
+                    >
+                      <span>🔨</span>
+                      <span>抓到!</span>
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        )}
 
-        {/* Right Column: In-Room Live Chat & Real-Time Event Feed */}
-        <div className="lg:col-span-4 flex flex-col rounded-2xl bg-slate-900/70 border border-slate-800 overflow-hidden h-[620px]">
-          {/* Tabs / Header */}
-          <div className="p-3.5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-white">
-              <MessageSquare className="w-4 h-4 text-amber-400" />
-              <span>房間實時動態 & 聊天室</span>
+        {/* 中央：自己的狀態 + 神秘問號牌 */}
+        <div className="relative z-10 flex flex-col items-center text-center gap-1.5">
+          <div className="relative animate-float">
+            {/* 我的圓形大頭像 */}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#ff9f1c] border-4 border-[#2b2118] flex items-center justify-center text-3xl sm:text-4xl shadow-[0_5px_0_rgba(43,33,24,0.18)]">
+              {myPlayer?.avatar}
             </div>
-            <span className="text-[11px] text-slate-400">文字陷阱也是戰術！</span>
+
+            {/* 自己的神秘牌：黑色問號牌，保密看不見！ */}
+            <div
+              className={`absolute -top-3 -right-4 w-11 h-11 sm:w-13 sm:h-13 rounded-xl border-3 border-white flex flex-col items-center justify-center shadow-[0_4px_0_rgba(43,33,24,0.2)] rotate-8 transition-transform cursor-pointer ${
+                selfPeekUnlocked ? 'bg-[#ff9f1c]' : 'bg-[#2b2118]'
+              }`}
+              onClick={() => {
+                sounds.playDing();
+                setSelfPeekUnlocked(!selfPeekUnlocked);
+              }}
+              title="點擊切換偷瞄模式"
+            >
+              {!selfPeekUnlocked ? (
+                <span className="text-xl sm:text-2xl font-black text-[#ffd23f] leading-none">
+                  ?
+                </span>
+              ) : (
+                <span className="text-[9px] font-black text-white p-0.5 leading-tight text-center">
+                  {myPlayer?.forbiddenCard?.content || '未知'}
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Feed & Chat List */}
-          <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
-            {/* System Events & Messages combined in chronological order */}
-            {historyLog?.slice(-15).map((log) => (
+          <p className="text-xs sm:text-sm font-black text-[#2b2118] leading-tight">
+            你的禁忌牌是秘密 🤫
+          </p>
+          <p className="text-[11px] font-bold text-[#7a6a58] -mt-0.5">
+            只能看別人的牌，小心別被誘惑！
+          </p>
+
+          <button
+            type="button"
+            onClick={() => {
+              sounds.playDing();
+              setSelfPeekUnlocked(!selfPeekUnlocked);
+            }}
+            className="flex items-center gap-1 text-[11px] font-bold text-[#7a6a58] hover:text-[#2b2118] bg-white/70 border border-[#2b2118]/30 rounded-full px-2.5 py-0.5 cursor-pointer mt-0.5"
+          >
+            <Eye className="w-3 h-3" />
+            <span>{selfPeekUnlocked ? '隱藏我的牌' : '偷瞄模式 (單人測試)'}</span>
+          </button>
+        </div>
+      </main>
+
+      {/* 3. 遊戲底部控制列 */}
+      <footer className="flex items-center justify-center gap-2 sm:gap-3 shrink-0 z-10 pt-1">
+        <button
+          onClick={handleNextTopic}
+          className="btn-cartoon btn-cartoon-white px-3 sm:px-4 py-1.5 text-xs font-black cursor-pointer flex items-center gap-1"
+        >
+          <span>🎲</span>
+          <span>換一張</span>
+        </button>
+
+        <button
+          disabled={myPlayer?.isEliminated}
+          onClick={() => setGuessModalOpen(true)}
+          className="btn-cartoon btn-cartoon-orange px-4 sm:px-6 py-1.5 text-xs sm:text-sm font-black cursor-pointer disabled:opacity-40 flex items-center gap-1"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>破咒自救！我猜到了</span>
+        </button>
+
+        <button
+          onClick={() => setChatDrawerOpen(!chatDrawerOpen)}
+          className={`btn-cartoon ${
+            chatDrawerOpen ? 'btn-cartoon-purple' : 'btn-cartoon-white'
+          } px-3 sm:px-4 py-1.5 text-xs font-black cursor-pointer flex items-center gap-1`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>聊天室</span>
+        </button>
+
+        {isHost && (
+          <button
+            onClick={onResetGame}
+            className="btn-cartoon btn-cartoon-white px-2.5 py-1.5 text-xs font-black cursor-pointer text-[#7a6a58] hover:text-[#2b2118]"
+            title="重置回大廳"
+          >
+            回大廳
+          </button>
+        )}
+      </footer>
+
+      {/* 彈出式即時聊天與戰況播報 (Chat Drawer) */}
+      {chatDrawerOpen && (
+        <div className="absolute inset-x-3 bottom-12 top-14 z-40 bg-[#fff7e6] border-4 border-[#2b2118] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in duration-150">
+          <div className="p-2.5 bg-[#ffe9c7] border-b-3 border-[#2b2118] flex items-center justify-between">
+            <span className="text-xs font-black text-[#2b2118] flex items-center gap-1">
+              <span>💬 房間實時動態 & 聊天誘惑</span>
+            </span>
+            <button
+              onClick={() => setChatDrawerOpen(false)}
+              className="w-6 h-6 rounded-full bg-white border-2 border-[#2b2118] flex items-center justify-center text-xs font-black cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {/* System combat logs */}
+            {historyLog?.slice(-8).map((log) => (
               <div
                 key={log.id}
-                className={`p-2 rounded-lg text-xs leading-relaxed ${
-                  log.type === 'penalty'
-                    ? 'bg-rose-950/40 border border-rose-900/60 text-rose-200'
-                    : log.type === 'guess_correct'
-                    ? 'bg-emerald-950/40 border border-emerald-900/60 text-emerald-200'
-                    : log.type === 'guess_wrong'
-                    ? 'bg-amber-950/40 border border-amber-900/60 text-amber-200'
-                    : 'bg-slate-950/40 border border-slate-800/80 text-slate-300'
-                }`}
+                className="text-[11px] font-bold p-1.5 rounded-xl bg-white border-2 border-[#2b2118] text-[#7a6a58]"
               >
                 {log.text}
               </div>
             ))}
 
+            {/* Chat messages */}
             {messages?.map((msg) => {
               const isMine = msg.senderId === myPlayerId;
               return (
@@ -408,14 +402,12 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
                   key={msg.id}
                   className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
                 >
-                  <span className="text-[10px] text-slate-400 mb-0.5">
+                  <span className="text-[10px] font-bold text-[#7a6a58]">
                     {msg.avatar} {msg.senderName}
                   </span>
                   <div
-                    className={`max-w-[85%] px-3 py-1.5 rounded-xl text-xs font-medium ${
-                      isMine
-                        ? 'bg-amber-500 text-slate-950 font-semibold rounded-tr-none'
-                        : 'bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700/80'
+                    className={`max-w-[80%] px-3 py-1 rounded-xl text-xs font-black border-2 border-[#2b2118] ${
+                      isMine ? 'bg-[#ff9f1c] text-white' : 'bg-white text-[#2b2118]'
                     }`}
                   >
                     {msg.text}
@@ -425,71 +417,72 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
             })}
           </div>
 
-          {/* Chat Input */}
-          <form
-            onSubmit={handleSendChatMessage}
-            className="p-3 border-t border-slate-800 bg-slate-950/80 flex items-center gap-2"
-          >
+          {/* Quick chips */}
+          <div className="px-2 py-1 flex gap-1 overflow-x-auto border-t-2 border-[#e8ddcb]">
+            {PRESET_QUICK_CHATS.map((c) => (
+              <button
+                key={c}
+                onClick={() => handleQuickChat(c)}
+                className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-[#2b2118] cursor-pointer"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          {/* Input */}
+          <form onSubmit={handleSendChatMessage} className="p-2 border-t-2 border-[#2b2118] flex gap-1.5 bg-white">
             <input
               type="text"
-              placeholder="發送訊息引誘對手..."
+              placeholder="輸入文字誘惑對手..."
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              className="flex-1 px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+              className="flex-1 px-3 py-1 text-xs bg-[#fff7e6] border-2 border-[#2b2118] rounded-xl text-[#2b2118] font-bold focus:outline-none"
             />
             <button
               type="submit"
               disabled={!chatInput.trim()}
-              className="p-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-bold transition-colors"
+              className="btn-cartoon btn-cartoon-orange px-3 py-1 text-xs cursor-pointer disabled:opacity-40"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-3.5 h-3.5" />
             </button>
           </form>
         </div>
-      </div>
+      )}
 
-      {/* Deduction Guess Modal */}
+      {/* 破咒自猜對話框 (Guess Modal) */}
       {guessModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="max-w-md w-full p-6 rounded-2xl bg-slate-900 border border-indigo-500/50 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white">破咒推理：猜測自己的牌！</h3>
-                <p className="text-xs text-slate-400">你覺得剛才大家一直在引誘你做什麼？</p>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2b2118]/80 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-sm bg-gradient-to-b from-[#fff7e6] to-[#ffe9c7] border-4 border-[#2b2118] rounded-[28px] p-5 shadow-2xl text-[#2b2118] space-y-3">
+            <div className="text-center space-y-1">
+              <span className="text-3xl">✨</span>
+              <h3 className="text-lg font-black text-[#2b2118]">破咒自救：猜測自己的牌面！</h3>
+              <p className="text-xs font-bold text-[#7a6a58]">
+                剛才對手一直在聊什麼、誘惑你做什麼小動作？
+              </p>
             </div>
 
-            <form onSubmit={handleSubmitGuess} className="space-y-4">
-              <div>
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="輸入你猜測的禁止動作或詞彙 (如: 摸頭髮、說真的嗎)"
-                  value={guessInput}
-                  onChange={(e) => setGuessInput(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400"
-                />
-                <p className="text-[11px] text-amber-400/90 mt-1.5 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  提示：猜對可回血+換新牌；猜錯會扣 1 顆生命 ❤️ 喔！
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
+            <form onSubmit={handleSubmitGuess} className="space-y-3 pt-1">
+              <input
+                type="text"
+                autoFocus
+                placeholder="輸入猜測動作或禁詞 (例: 摸頭髮、說好)"
+                value={guessInput}
+                onChange={(e) => setGuessInput(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-white border-3 border-[#2b2118] rounded-xl text-[#2b2118] font-bold focus:outline-none"
+              />
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setGuessModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white rounded-lg bg-slate-800 hover:bg-slate-700"
+                  className="btn-cartoon btn-cartoon-white px-3 py-1.5 text-xs cursor-pointer"
                 >
                   再想想
                 </button>
                 <button
                   type="submit"
                   disabled={!guessInput.trim()}
-                  className="px-5 py-2 text-xs font-bold text-white rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40"
+                  className="btn-cartoon btn-cartoon-orange px-4 py-1.5 text-xs cursor-pointer disabled:opacity-40"
                 >
                   確認猜測！
                 </button>

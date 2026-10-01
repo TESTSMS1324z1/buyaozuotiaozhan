@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Player } from '../types/game';
 import confetti from 'canvas-confetti';
-import { RotateCcw, Heart, Award } from 'lucide-react';
+import { RotateCcw, Award, Crown } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
 interface GameOverModalProps {
@@ -13,23 +13,22 @@ interface GameOverModalProps {
 export const GameOverModal: React.FC<GameOverModalProps> = ({ players, isHost, onResetGame }) => {
   useEffect(() => {
     sounds.playCheer();
-    // Fire confetti cannons
     confetti({
-      particleCount: 100,
-      spread: 70,
+      particleCount: 120,
+      spread: 80,
       origin: { y: 0.6 },
     });
     const timer = setTimeout(() => {
       confetti({
-        particleCount: 60,
+        particleCount: 70,
         angle: 60,
-        spread: 55,
+        spread: 60,
         origin: { x: 0 },
       });
       confetti({
-        particleCount: 60,
+        particleCount: 70,
         angle: 120,
-        spread: 55,
+        spread: 60,
         origin: { x: 1 },
       });
     }, 400);
@@ -37,88 +36,87 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ players, isHost, o
     return () => clearTimeout(timer);
   }, []);
 
-  // Determine winner(s)
   const survivors = players?.filter((p) => !p.isEliminated) || [];
   const winner =
     survivors.length > 0
       ? survivors.sort((a, b) => b.lives - a.lives)[0]
       : [...(players || [])].sort((a, b) => a.penaltyCount - b.penaltyCount)[0];
 
-  // Most penalized player
   const penaltyKing = [...(players || [])].sort((a, b) => b.penaltyCount - a.penaltyCount)[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-amber-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
-        {/* Trophy Header */}
-        <div className="relative">
-          <div className="w-24 h-24 mx-auto rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center p-2 shadow-2xl shadow-amber-500/20">
-            <img
-              src="/src/assets/images/winner_party_trophy_1790299617923.jpg"
-              alt="Winner Party Trophy"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-contain"
-            />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#2b2118]/85 backdrop-blur-xs animate-in fade-in duration-300">
+      <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto bg-gradient-to-b from-[#fff7e6] to-[#ffe9c7] border-4 border-[#2b2118] rounded-[28px] p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center space-y-4">
+        {/* 獎盃榮耀標題 */}
+        <div>
+          <div className="w-18 h-18 sm:w-20 sm:h-20 mx-auto rounded-3xl bg-[#ffd23f] border-4 border-[#2b2118] flex items-center justify-center text-4xl shadow-[0_5px_0_rgba(43,33,24,0.2)]">
+            🏆
           </div>
-          <span className="inline-block mt-3 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-black uppercase tracking-widest">
-            🎉 遊戲結束 · 榮耀頒獎典禮
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
-            {winner ? `恭喜 ${winner.name} 奪冠！` : '派對對決結束！'}
+          <div className="mt-2.5 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#ff9f1c] text-white border-2 border-[#2b2118] text-xs font-black uppercase tracking-wider shadow-[0_3px_0_rgba(43,33,24,0.15)]">
+            <Crown className="w-3.5 h-3.5" />
+            <span>對決結算 · 頒獎典禮</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-black text-[#2b2118] mt-1 tracking-tight">
+            {winner ? `恭喜 ${winner.name} 奪得冠軍！` : '派對對決精彩落幕！'}
           </h2>
-          <p className="text-xs text-slate-400">在全員的唇槍舌戰中成功存活，堪稱心機破局之王！</p>
+          <p className="text-xs font-bold text-[#7a6a58]">
+            成功識破對手陷阱並存活，堪稱心理戰大師！
+          </p>
         </div>
 
-        {/* Highlight Awards */}
-        <div className="grid grid-cols-2 gap-3 text-left">
-          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-amber-400 flex items-center gap-1">
-              <Award className="w-3.5 h-3.5" />
-              <span>👑 終極倖存冠軍</span>
+        {/* 雙重點：MVP 倖存者 & 綜藝犯規王 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
+          <div className="p-3 rounded-2xl bg-white border-3 border-[#2b2118] space-y-1 shadow-[0_4px_0_rgba(43,33,24,0.1)]">
+            <span className="text-[10px] font-black text-[#ff9f1c] flex items-center gap-1">
+              <Award className="w-3 h-3" />
+              <span>👑 終極倖存者 (MVP)</span>
             </span>
-            <div className="text-sm font-black text-white truncate">
-              {winner?.avatar} {winner?.name}
+            <div className="text-sm font-black text-[#2b2118] truncate flex items-center gap-1.5">
+              <span className="text-2xl">{winner?.avatar}</span>
+              <span>{winner?.name}</span>
             </div>
-            <span className="text-[11px] text-amber-300/80 block">
-              剩餘生命: {winner?.lives} ❤️ · 犯規: {winner?.penaltyCount} 次
+            <span className="text-[11px] font-bold text-[#7a6a58] block">
+              剩餘生命: {winner?.lives} ❤️ · 犯規僅 {winner?.penaltyCount} 次
             </span>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-rose-400 flex items-center gap-1">
-              <Award className="w-3.5 h-3.5" />
-              <span>🔨 綜藝犯規王</span>
+          <div className="p-3 rounded-2xl bg-white border-3 border-[#2b2118] space-y-1 shadow-[0_4px_0_rgba(43,33,24,0.1)]">
+            <span className="text-[10px] font-black text-[#ff5d8f] flex items-center gap-1">
+              <Award className="w-3 h-3" />
+              <span>🔨 綜藝人氣犯規王</span>
             </span>
-            <div className="text-sm font-black text-white truncate">
-              {penaltyKing?.avatar} {penaltyKing?.name}
+            <div className="text-sm font-black text-[#2b2118] truncate flex items-center gap-1.5">
+              <span className="text-2xl">{penaltyKing?.avatar}</span>
+              <span>{penaltyKing?.name}</span>
             </div>
-            <span className="text-[11px] text-rose-300/80 block">
-              累計犯規被敲 {penaltyKing?.penaltyCount} 次！
+            <span className="text-[11px] font-bold text-[#7a6a58] block">
+              被氣槌暴扣高達 {penaltyKing?.penaltyCount} 次！全場笑點！
             </span>
           </div>
         </div>
 
-        {/* All Players Cards Revealed */}
-        <div className="space-y-2 text-left">
-          <h4 className="text-xs font-bold text-slate-300">本局所有人額頭卡牌真相大公開：</h4>
-          <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+        {/* 全員額頭卡牌真相大公開 */}
+        <div className="space-y-1.5 text-left">
+          <h4 className="text-xs font-black text-[#2b2118]">
+            🔍 全員神秘額頭牌真相揭曉：
+          </h4>
+          <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
             {players?.map((p) => (
               <div
                 key={p.id}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs"
+                className="flex items-center justify-between p-2 rounded-xl bg-white border-2 border-[#2b2118] text-xs font-bold"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <span className="text-base">{p.avatar}</span>
-                  <span className="font-bold text-white truncate">{p.name}</span>
+                  <span className="text-xl">{p.avatar}</span>
+                  <span className="font-black text-[#2b2118] truncate">{p.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-400 font-semibold border border-slate-700">
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#ffe9c7] text-[#2b2118] font-black border border-[#2b2118]">
                     {p.forbiddenCard?.type === 'ACTION' ? '動作' : '禁詞'}:{' '}
-                    {p.forbiddenCard?.content || '未知'}
+                    {p.forbiddenCard?.content || '神秘牌面'}
                   </span>
-                  <span className="text-slate-400 font-mono flex items-center gap-0.5">
-                    <Heart className="w-3 h-3 text-rose-500 fill-rose-500" />
-                    {p.lives}
+                  <span className="text-xs font-mono font-black text-[#ff3b3b]">
+                    ❤️ {p.lives}
                   </span>
                 </div>
               </div>
@@ -126,21 +124,23 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ players, isHost, o
           </div>
         </div>
 
-        {/* Play Again Controls */}
-        <div className="pt-2">
+        {/* 重新開始控制列 */}
+        <div className="pt-1">
           {isHost ? (
             <button
               onClick={() => {
                 sounds.playDing();
                 onResetGame();
               }}
-              className="w-full py-3.5 px-6 rounded-xl font-black text-sm tracking-wide bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 border border-amber-400 shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 transition-all active:scale-95"
+              className="btn-cartoon btn-cartoon-orange w-full py-2.5 sm:py-3 px-6 text-sm sm:text-base font-black flex items-center justify-center gap-2 cursor-pointer shadow-[0_5px_0_rgba(43,33,24,0.25)]"
             >
               <RotateCcw className="w-4 h-4" />
-              <span>再來一局！重返大廳發牌</span>
+              <span>再來一局！重返大廳重新發牌</span>
             </button>
           ) : (
-            <p className="text-xs text-slate-400">等待房主重新發牌開始下一局...</p>
+            <div className="p-2.5 rounded-xl bg-white border-2 border-[#2b2118] text-xs font-bold text-[#7a6a58]">
+              等待主持房主重新發牌開戰...
+            </div>
           )}
         </div>
       </div>

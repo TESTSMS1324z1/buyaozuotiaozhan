@@ -5,25 +5,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { RoomState } from './types/game';
-import { Navbar } from './components/Navbar';
 import { RulesGuideModal } from './components/RulesGuideModal';
 import { LobbyView } from './components/LobbyView';
 import { GameTableView } from './components/GameTableView';
 import { GameOverModal } from './components/GameOverModal';
 import { gameService } from './lib/gameService';
-import { Sparkles, ArrowRight, ShieldCheck, Flame, Laugh } from 'lucide-react';
+import { sounds } from './utils/audio';
 
-const AVATAR_OPTIONS = ['😎', '🤠', '🐱', '🦊', '🐼', '🦁', '👻', '🤖', '🍕', '🚀', '🎭', '🦄'];
+const AVATAR_OPTIONS = ['🦊', '🐼', '🐸', '🐵', '🐱', '🦁', '😎', '🤠', '👻', '🤖', '🍕', '🚀'];
 
 export default function App() {
   const [room, setRoom] = useState<RoomState | null>(null);
   const [myPlayerId, setMyPlayerId] = useState<string>('');
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [showJoinInput, setShowJoinInput] = useState(false);
 
   // Landing input states
   const [roomInput, setRoomInput] = useState('');
   const [playerName, setPlayerName] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState('😎');
+  const [selectedAvatar, setSelectedAvatar] = useState('🦊');
   const [isJoining, setIsJoining] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -33,6 +33,7 @@ export default function App() {
     const roomFromUrl = params.get('room');
     if (roomFromUrl) {
       setRoomInput(roomFromUrl.toUpperCase());
+      setShowJoinInput(true);
     }
   }, []);
 
@@ -44,7 +45,7 @@ export default function App() {
         setErrorMsg('連線超時，請檢查網絡或房間代碼是否正確');
         setRoom(null);
         setIsJoining(false);
-      }, 10000); // 10 seconds timeout
+      }, 10000);
     }
     return () => clearTimeout(timeout);
   }, [room?.status]);
@@ -63,14 +64,14 @@ export default function App() {
     setIsJoining(true);
     setErrorMsg('');
     try {
+      const defaultName = `玩家${Math.floor(Math.random() * 900 + 100)}`;
       const { roomId, playerId } = await gameService.joinRoom(
         targetRoomId, 
-        playerName || `玩家${Math.floor(Math.random() * 900 + 100)}`, 
+        playerName || defaultName, 
         selectedAvatar
       );
       
       setMyPlayerId(playerId);
-      // Wait for subscription to provide full data
       setRoom({ roomId, status: 'LOADING' } as any);
       
       const url = new URL(window.location.href);
@@ -84,6 +85,7 @@ export default function App() {
 
   const handleCreateRoom = (e: React.FormEvent) => {
     e.preventDefault();
+    sounds.playDing();
     handleJoinOrCreate('');
   };
 
@@ -93,7 +95,15 @@ export default function App() {
       setErrorMsg('請輸入房間代碼');
       return;
     }
+    sounds.playDing();
     handleJoinOrCreate(roomInput.trim().toUpperCase());
+  };
+
+  const handleLeaveRoom = () => {
+    setRoom(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('room');
+    window.history.replaceState({}, '', url.toString());
   };
 
   // Actions
@@ -121,7 +131,6 @@ export default function App() {
     if (room?.roomId) {
       const isCorrect = await gameService.guessCard(room.roomId, myPlayerId, guess);
       if (isCorrect) {
-        // You can add a system message or local state here
         handleSendChat(`💡 我猜對了！我的卡牌真的是「${guess}」！`);
       }
     }
@@ -141,7 +150,11 @@ export default function App() {
   };
 
   const handleAddCustomCard = (cardType: 'ACTION' | 'WORD', content: string) => {
-    // Optional: Add to custom cards list in room settings
+    if (room?.roomId && room.settings) {
+      const currentCards = room.settings.customCards || [];
+      const updated = [...currentCards, { type: cardType, content }];
+      gameService.updateSettings(room.roomId, { customCards: updated });
+    }
   };
 
   const handleNextTopic = () => {
@@ -158,169 +171,154 @@ export default function App() {
 
   const isHost = room?.hostId === myPlayerId;
 
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500/30">
-      <Navbar
-        roomId={room?.roomId}
-        onOpenRules={() => setRulesOpen(true)}
-      />
+    <div className="min-h-screen bg-[#2b2118] text-[#2b2118] flex items-center justify-center p-0 sm:p-3 overflow-hidden select-none font-sans">
+      {/* 橫向手遊外框 (.game-phone-frame) */}
+      <div className="game-phone-frame">
+        {/* 背景裝飾泡泡 (全部頁面共用) */}
+        <div className="absolute rounded-full pointer-events-none opacity-35 -top-16 -left-12 w-64 h-64 bg-[#ffd23f] blur-xs" />
+        <div className="absolute rounded-full pointer-events-none opacity-35 -bottom-16 -right-10 w-56 h-56 bg-[#ff5d8f] blur-xs" />
+        <div className="absolute rounded-full pointer-events-none opacity-25 top-28 -right-8 w-44 h-44 bg-[#4dabff] blur-xs" />
 
-      <main className="flex-1">
         {!room ? (
-          /* Landing Screen */
-          <div className="max-w-4xl mx-auto px-4 py-8 sm:py-16 space-y-12 opacity-100">
-            {/* ... hero and form ... */}
-            <div className="text-center space-y-4 max-w-2xl mx-auto">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>經典綜藝實境秀在線版 · 免下載隨開即玩</span>
+          /* ==========================================================
+             頁面 1：開始畫面 (Screen Start)
+             ========================================================== */
+          <section className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            <div className="flex flex-col items-center gap-3 sm:gap-4 w-full max-w-lg text-center">
+              
+              {/* Logo Lockup */}
+              <div className="animate-float">
+                <div className="text-6xl sm:text-7xl leading-none drop-shadow-[0_5px_0_rgba(43,33,24,0.18)]">
+                  🙅
+                </div>
+                <h1 className="text-4xl sm:text-5xl font-black text-[#2b2118] tracking-tight mt-1 drop-shadow-[3px_3px_0_#fff]">
+                  不要做挑戰
+                </h1>
+                <p className="text-[11px] font-black tracking-[0.35em] text-[#7a6a58] uppercase mt-0.5">
+                  DON'T DO CHALLENGE
+                </p>
               </div>
-              <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                不要做挑戰
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-rose-400 to-amber-200 mt-1">
-                  心機與爆笑的額頭對決
-                </span>
-              </h1>
-              <p className="text-sm sm:text-base text-slate-400">
-                卡牌貼在額頭上，只有自己看不到！聊天互套話、引誘對手做出禁忌動作或說出禁詞，按下槌子暴扣！
-              </p>
-            </div>
 
-            {/* Join / Create Form Card */}
-            <div className="max-w-md mx-auto p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl space-y-6">
+              {/* Start Tagline */}
+              <p className="text-xs sm:text-sm font-bold text-[#7a6a58] leading-relaxed bg-white border-3 border-dashed border-[#ff9f1c] rounded-2xl px-4 py-2 shadow-[0_3px_0_rgba(43,33,24,0.1)]">
+                你看不到自己的禁忌牌，<br className="sm:hidden" />只能看到別人的——小心別踩雷！
+              </p>
+
               {errorMsg && (
-                <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs text-center font-medium">
+                <div className="p-2.5 rounded-xl bg-[#ff3b3b] text-white text-xs font-black border-2 border-[#2b2118] shadow-md">
                   {errorMsg}
                 </div>
               )}
 
-              {/* Player Profile Inputs */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-2">
-                    選擇你的玩家頭像
-                  </label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {AVATAR_OPTIONS.map((av) => (
-                      <button
-                        key={av}
-                        type="button"
-                        onClick={() => setSelectedAvatar(av)}
-                        className={`h-11 rounded-xl text-xl flex items-center justify-center transition-all ${
-                          selectedAvatar === av
-                            ? 'bg-amber-500/20 border-2 border-amber-400 scale-105'
-                            : 'bg-slate-950 border border-slate-800 hover:border-slate-700'
-                        }`}
-                      >
-                        {av}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    你的遊戲暱稱
-                  </label>
+              {/* 玩家個人資訊設定（頭像 + 暱稱） */}
+              <div className="w-full bg-white/80 border-3 border-[#2b2118] rounded-2xl p-3 shadow-[0_4px_0_rgba(43,33,24,0.15)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-[#7a6a58]">選擇頭像</span>
                   <input
                     type="text"
-                    placeholder="請輸入你的暱稱 (例: 派對心機王)"
+                    placeholder="輸入暱稱 (選填)..."
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
-                    maxLength={15}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                    maxLength={10}
+                    className="px-2.5 py-1 text-xs bg-[#fff7e6] border-2 border-[#2b2118] rounded-xl text-[#2b2118] placeholder-[#7a6a58]/60 font-bold focus:outline-none w-36 sm:w-44 text-center"
                   />
+                </div>
+
+                <div className="flex items-center justify-center gap-1.5 overflow-x-auto py-1">
+                  {AVATAR_OPTIONS.map((av) => (
+                    <button
+                      key={av}
+                      type="button"
+                      onClick={() => {
+                        sounds.playDing();
+                        setSelectedAvatar(av);
+                      }}
+                      className={`w-9 h-9 rounded-xl text-xl flex items-center justify-center transition-transform cursor-pointer border-2 ${
+                        selectedAvatar === av
+                          ? 'bg-[#ffd23f] border-[#2b2118] scale-110 shadow-[0_3px_0_rgba(43,33,24,0.2)]'
+                          : 'bg-white border-[#e8ddcb] hover:border-[#2b2118]'
+                      }`}
+                    >
+                      {av}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Action Tabs / Buttons */}
-              <div className="space-y-3 pt-2">
+              {/* Start Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full justify-center pt-1">
                 <button
                   onClick={handleCreateRoom}
                   disabled={isJoining}
-                  className="w-full py-3 px-4 rounded-xl font-black text-sm tracking-wide bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 text-slate-950 border border-amber-400 shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+                  className="btn-cartoon btn-cartoon-orange py-2.5 sm:py-3 px-8 text-sm sm:text-base font-black cursor-pointer disabled:opacity-50 w-full sm:w-auto"
                 >
-                  <Sparkles className="w-4 h-4 fill-slate-950" />
-                  <span>{isJoining ? '建立房間中...' : '開新房間 (當房主)'}</span>
+                  {isJoining ? '建立中...' : '🏠 建立房間'}
                 </button>
 
-                <div className="relative flex py-2 items-center">
-                  <div className="flex-grow border-t border-slate-800"></div>
-                  <span className="flex-shrink mx-3 text-xs text-slate-500 font-medium">
-                    或者加入好友房間
-                  </span>
-                  <div className="flex-grow border-t border-slate-800"></div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="輸入5碼房間代碼"
-                    value={roomInput}
-                    onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
-                    maxLength={6}
-                    className="flex-1 px-3.5 py-2.5 text-sm uppercase font-mono tracking-wider bg-slate-950 border border-slate-800 rounded-xl text-amber-400 placeholder-slate-600 focus:outline-none focus:border-amber-400"
-                  />
+                {!showJoinInput ? (
                   <button
-                    onClick={handleJoinExistingRoom}
-                    disabled={isJoining || !roomInput.trim()}
-                    className="px-5 py-2.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white border border-slate-700 transition-colors flex items-center gap-1.5"
+                    onClick={() => {
+                      sounds.playDing();
+                      setShowJoinInput(true);
+                    }}
+                    className="btn-cartoon btn-cartoon-white py-2.5 sm:py-3 px-8 text-sm sm:text-base font-black cursor-pointer w-full sm:w-auto"
                   >
-                    <span>加入</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    🎮 快速加入
                   </button>
-                </div>
+                ) : (
+                  <form onSubmit={handleJoinExistingRoom} className="flex items-center gap-1.5 w-full sm:w-auto">
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="房號 (如 B7K2)"
+                      value={roomInput}
+                      onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
+                      maxLength={6}
+                      className="px-3 py-2 text-xs sm:text-sm uppercase font-mono font-black tracking-widest bg-white border-3 border-[#2b2118] rounded-full text-[#9b5de5] placeholder-[#7a6a58]/50 focus:outline-none w-32 sm:w-36 text-center"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isJoining || !roomInput.trim()}
+                      className="btn-cartoon btn-cartoon-purple py-2 px-4 text-xs font-black cursor-pointer disabled:opacity-40"
+                    >
+                      加入
+                    </button>
+                  </form>
+                )}
               </div>
+
+              {/* Start Footer */}
+              <div className="flex items-center gap-3 text-[11px] font-bold text-[#7a6a58] pt-1">
+                <span className="bg-white border-2 border-[#e8ddcb] rounded-full px-2.5 py-0.5">
+                  v1.0 橫向手遊版
+                </span>
+                <span>🟢 派對隨時開局</span>
+                <button
+                  onClick={() => setRulesOpen(true)}
+                  className="underline hover:text-[#2b2118] cursor-pointer"
+                >
+                  玩法規則
+                </button>
+              </div>
+
             </div>
-
-            {/* Feature Highlights Bento */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-              <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/80 space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
-                  <Flame className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-white text-sm">綜藝靈魂拷問話題庫</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  內建豐富爆笑八卦、感情修羅場話題，不怕冷場，引導對手不知不覺說出禁詞！
-                </p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/80 space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
-                  <Laugh className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-white text-sm">自訂詞庫 & 搞怪動作</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  除了經典喝水、摸頭髮、說「真的嗎」，還能自訂朋友專屬口頭禪或習慣小動作！
-                </p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/80 space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-white text-sm">逆向推理破咒自救</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  察覺對手意圖了嗎？隨時發起「破咒推理」，成功猜出自己牌面即可逆轉回血！
-                </p>
-              </div>
-            </div>
-          </div>
+          </section>
         ) : (room as any).status === 'LOADING' ? (
-          /* Loading Screen */
-          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 opacity-100">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
-              <Flame className="absolute inset-0 m-auto w-6 h-6 text-amber-500 animate-pulse" />
+          /* 連線載入中畫面 */
+          <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-4 text-center">
+            <div className="text-5xl animate-bounce">
+              ⏳
             </div>
-            <div className="text-center space-y-2">
-              <h2 className="text-xl font-bold text-white">正在連線至房間...</h2>
-              <p className="text-slate-500 text-sm">正在同步遊戲數據與卡牌庫</p>
+            <div className="space-y-1">
+              <h2 className="text-xl font-black text-[#2b2118]">正在進入房間...</h2>
+              <p className="text-xs font-bold text-[#7a6a58]">同步牌庫與房間數據</p>
             </div>
           </div>
         ) : room.status === 'LOBBY' ? (
-          /* Lobby Room View */
+          /* ==========================================================
+             頁面 2：房主房間畫面 (Screen Room / 8人座位格)
+             ========================================================== */
           <LobbyView
             roomId={room.roomId}
             myPlayerId={myPlayerId}
@@ -331,9 +329,13 @@ export default function App() {
             onStartGame={handleStartGame}
             onUpdateSettings={handleUpdateSettings}
             onAddCustomCard={handleAddCustomCard}
+            onLeaveRoom={handleLeaveRoom}
+            onOpenRules={() => setRulesOpen(true)}
           />
         ) : (
-          /* Active Game or Game Over View */
+          /* ==========================================================
+             頁面 3：遊戲畫面 (Screen Game / 環繞對手與中央神秘牌)
+             ========================================================== */
           <>
             <GameTableView
               roomId={room.roomId}
@@ -360,11 +362,7 @@ export default function App() {
             )}
           </>
         )}
-      </main>
-
-      <footer className="border-t border-slate-800/60 py-6 text-center text-xs text-slate-500">
-        <p>「不要做挑戰」在線多人派對遊戲 · 適合 Discord 語音開黑、朋友聚會或線上聯機</p>
-      </footer>
+      </div>
 
       {/* Rules Guide Modal */}
       <RulesGuideModal

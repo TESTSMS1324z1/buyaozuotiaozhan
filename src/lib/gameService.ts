@@ -33,25 +33,34 @@ export const gameService = {
       const roomDoc = await transaction.get(roomRef);
       
       if (!roomDoc.exists()) {
-        // Create room if it doesn't exist
+        // Create room if it doesn't exist with full proper GameSettings
         transaction.set(roomRef, {
           status: 'LOBBY',
           hostId: playerId,
           currentTopic: VARIETY_TOPICS[0],
           topicIndex: 0,
-          settings: { lives: 3, timeLimit: 0 },
+          settings: {
+            initialLives: 3,
+            deckCategories: ['daily', 'chat'],
+            enableDeductionGuess: true,
+            roundDurationMinutes: 0,
+            customCards: []
+          },
           messages: [],
           historyLog: [],
           createdAt: serverTimestamp()
         });
       }
 
-      // Add player
+      // Add player with default lives and stats
       transaction.set(playerRef, {
         id: playerId,
         name,
         avatar,
         lives: 3,
+        maxLives: 3,
+        penaltyCount: 0,
+        isEliminated: false,
         isReady: false,
         isHost: !roomDoc.exists(),
         joinedAt: serverTimestamp()
@@ -98,7 +107,21 @@ export const gameService = {
 
     const unsubRoom = onSnapshot(roomRef, (snapshot) => {
       if (snapshot.exists()) {
-        currentRoomData = snapshot.data();
+        const rawData = snapshot.data();
+        const rawSettings = rawData.settings || {};
+        const safeSettings: GameSettings = {
+          initialLives: typeof rawSettings.initialLives === 'number' ? rawSettings.initialLives : (rawSettings.lives || 3),
+          deckCategories: Array.isArray(rawSettings.deckCategories) && rawSettings.deckCategories.length > 0
+            ? rawSettings.deckCategories
+            : ['daily', 'chat'],
+          enableDeductionGuess: rawSettings.enableDeductionGuess ?? true,
+          roundDurationMinutes: rawSettings.roundDurationMinutes ?? 0,
+          customCards: Array.isArray(rawSettings.customCards) ? rawSettings.customCards : []
+        };
+        currentRoomData = {
+          ...rawData,
+          settings: safeSettings
+        };
         notify();
       }
     }, (error) => {
@@ -139,11 +162,25 @@ export const gameService = {
     const roomDoc = await getDoc(roomRef);
     if (!roomDoc.exists()) return;
     
-    const settings = roomDoc.data().settings as GameSettings;
-    const categories = settings?.deckCategories || ['daily', 'chat'];
+    const rawSettings = roomDoc.data().settings || {};
+    const categories: string[] = (Array.isArray(rawSettings.deckCategories) && rawSettings.deckCategories.length > 0)
+      ? rawSettings.deckCategories
+      : ['daily', 'chat'];
+    const initialLives: number = typeof rawSettings.initialLives === 'number' ? rawSettings.initialLives : (rawSettings.lives || 3);
     
     // Filter cards by category
     let pool = PRESET_CARDS.filter(c => categories.includes(c.category));
+    if (Array.isArray(rawSettings.customCards) && rawSettings.customCards.length > 0) {
+      const customFormatted = rawSettings.customCards.map((c: any, idx: number) => ({
+        id: `custom_${idx}`,
+        category: 'custom',
+        type: c.type,
+        content: c.content,
+        baitTip: '自訂趣味陷阱牌'
+      }));
+      pool = [...pool, ...customFormatted];
+    }
+
     if (pool.length < players.length) pool = PRESET_CARDS; // Fallback to all if pool too small
     
     // Better shuffle (Fisher-Yates)
@@ -160,11 +197,18 @@ export const gameService = {
         activeViolation: null 
       });
       
-      // Set secrets
+      // Set secrets AND properly initialize/reset players' lives and stats!
       players.forEach((p, i) => {
         const secretRef = doc(db, 'rooms', roomId, 'secrets', p.id);
+        const playerRef = doc(db, 'rooms', roomId, 'players', p.id);
         const card = shuffled[i % shuffled.length];
         transaction.set(secretRef, { card });
+        transaction.update(playerRef, {
+          lives: initialLives,
+          maxLives: initialLives,
+          penaltyCount: 0,
+          isEliminated: false
+        });
       });
     });
   },
@@ -248,9 +292,31 @@ export const gameService = {
     });
   },
 
-  async updateSettings(roomId: string, settings: Record<string, any>) {
+  async updateSettings(roomId: string, newSettings: Partial<GameSettings>) {
     const roomRef = doc(db, 'rooms', roomId);
-    await updateDoc(roomRef, { settings });
+    await runTransaction(db, async (transaction) => {
+       const roomDoc = await transaction.get(roomRef);
+       if (!roomDoc.exists()) return;
+       const currentSettings: GameSettings = roomDoc.data().settings || {
+         initialLives: 3,
+         deckCategories: ['daily', 'chat'],
+         enableDeductionGuess: true,
+         roundDurationMinutes: 0,
+         customCards: []
+       };
+
+       const merged: GameSettings = {
+         initialLives: typeof newSettings.initialLives === 'number' ? newSettings.initialLives : (currentSettings.initialLives || 3),
+         deckCategories: Array.isArray(newSettings.deckCategories) && newSettings.deckCategories.length > 0
+           ? newSettings.deckCategories
+           : (currentSettings.deckCategories?.length > 0 ? currentSettings.deckCategories : ['daily', 'chat']),
+         enableDeductionGuess: newSettings.enableDeductionGuess ?? currentSettings.enableDeductionGuess ?? true,
+         roundDurationMinutes: newSettings.roundDurationMinutes ?? currentSettings.roundDurationMinutes ?? 0,
+         customCards: newSettings.customCards ?? currentSettings.customCards ?? []
+       };
+
+       transaction.update(roomRef, { settings: merged });
+    });
   },
 
   async nextTopic(roomId: string, currentIndex: number) {
